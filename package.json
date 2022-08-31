@@ -10,15 +10,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/AnaLTFernandes/bate-papo-uol-api.git"
+    "url": "git+https://github.com/AnaLTFernandes/batepapo-uol-api.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/AnaLTFernandes/bate-papo-uol-api/issues"
+    "url": "https://github.com/AnaLTFernandes/batepapo-uol-api/issues"
   },
-  "homepage": "https://github.com/AnaLTFernandes/bate-papo-uol-api#readme",
+  "homepage": "https://github.com/AnaLTFernandes/batepapo-uol-api#readme",
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.18.1"
