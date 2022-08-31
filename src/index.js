@@ -25,8 +25,12 @@ server.post('/participants', (req, res) => {
 
     participants.push({ name, lastStatus: Date.now() });
     messages.push({ from: name, to: 'Todos', text: 'entra na sala...', type: 'status', time: new Date().toLocaleTimeString('pt-br') });
-    
-    res.status(201).send({ message:'Usuário criado', messages });
+
+    res.status(201).send({ message:'Usuário criado' });
+});
+
+server.get('/participants', (req, res) => {
+    res.send(participants);
 });
 
 server.listen(5000, () => console.log('Servidor rodando na porta 5000'));
