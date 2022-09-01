@@ -1,36 +1,58 @@
 import express from 'express';
 import cors from 'cors';
+import { MongoClient } from 'mongodb';
+import dotenv from 'dotenv';
+import dayjs from 'dayjs';
+
+dotenv.config();
 
 const server = express();
 
 server.use(cors());
 server.use(express.json());
 
-const participants = [];
-const messages = [];
+const mongoClient = new MongoClient(process.env.MONGO_URI)
 
-server.post('/participants', (req, res) => {
+let db;
+
+mongoClient.connect().then(() => {
+    db = mongoClient.db('batepapo_uol');
+});
+
+server.post('/participants', async (req, res) => {
     const { name } = req.body;
-    const hasName = participants.find(participant => name === participant.name);
 
     if (!name) {
         res.sendStatus(422);
         return;
     }
 
-    if (hasName) {
+    const hasName = await db.collection('participants').find({ name }).toArray();
+
+    if (hasName.length > 0) {
         res.status(409).send({ message:'Nome já existente!' });
         return;
     }
 
-    participants.push({ name, lastStatus: Date.now() });
-    messages.push({ from: name, to: 'Todos', text: 'entra na sala...', type: 'status', time: new Date().toLocaleTimeString('pt-br') });
+  
+    db.collection('participants').insertOne({ name, lastStatus: Date.now() });
+    db.collection('messages').insertOne({
+        from: name,
+        to: 'Todos',
+        text: 'entra na sala...',
+        type: 'status',
+        time: dayjs(new Date()).format('HH:mm:ss')
+    })
 
     res.status(201).send({ message:'Usuário criado' });
 });
 
-server.get('/participants', (req, res) => {
+server.get('/participants', async (req, res) => {
+    let participants = await db.collection('participants').find().toArray();
+
+    participants = participants.map(({ name, lastStatus }) => ({ name, lastStatus }));
+    
     res.send(participants);
 });
 
-server.listen(5000, () => console.log('Servidor rodando na porta 5000'));
+server.listen(5000, () => console.log('Servidor rodando na porta 5000.'));
