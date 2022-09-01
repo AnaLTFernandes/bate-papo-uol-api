@@ -19,6 +19,28 @@ mongoClient.connect().then(() => {
     db = mongoClient.db('batepapo_uol');
 });
 
+
+setInterval (async () => {
+    const participants = await db.collection('participants').find().toArray();
+
+    participants.map(({ name, lastStatus }) => {
+        const now = Date.now();
+        const sec_10 = 10000;
+
+        if ((now - lastStatus) > sec_10) {
+            db.collection('participants').deleteOne({ name, lastStatus });
+
+            db.collection('messages').insertOne({
+                from: name,
+                to: 'Todos',
+                text: 'sai na sala...',
+                type: 'status',
+                time: dayjs(new Date()).format('HH:mm:ss')
+            })
+        }
+    });
+}, 15000);
+ 
 server.post('/participants', async (req, res) => {
     const { name } = req.body;
 
@@ -42,7 +64,7 @@ server.post('/participants', async (req, res) => {
         text: 'entra na sala...',
         type: 'status',
         time: dayjs(new Date()).format('HH:mm:ss')
-    })
+    });
 
     res.status(201).send({ message:'Usuário criado' });
 });
@@ -101,17 +123,17 @@ server.get('/messages', async (req, res) => {
         return;
     }
 
-    const messagesFromUser = await db.collection('messages').find({ from:user }).toArray();
-    const messagesToUser = await db.collection('messages').find({ to:user }).toArray();
-    const messagesToEveryone = await db.collection('messages').find({ type:'message' }).toArray();
+    let messages = await db.collection('messages').find().toArray();
     
-    const messages = [
-        ...messagesFromUser,
-        ...messagesToUser,
-        ...messagesToEveryone
-    ];
+    messages = messages.filter(({ from, to, type }) => 
+        from === user ||
+        to === user ||
+        to === 'Todos' ||
+        type === 'message'
+    );
 
     res.send(messages.reverse().slice(0, limit));
 });
+
 
 server.listen(5000, () => console.log('Servidor rodando na porta 5000.'));
