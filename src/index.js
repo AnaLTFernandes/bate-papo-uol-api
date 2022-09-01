@@ -51,8 +51,40 @@ server.get('/participants', async (req, res) => {
     let participants = await db.collection('participants').find().toArray();
 
     participants = participants.map(({ name, lastStatus }) => ({ name, lastStatus }));
-    
+
     res.send(participants);
+});
+
+server.post('/messages', async (req, res) => {
+    const { user } = req.headers;
+    const { to, text, type } = req.body;
+
+    const hasUser = await db.collection('participants').find({ name:user }).toArray();
+
+    if (!to || !text) {
+        res.status(422).send({ message:'Campos vazios são inválidos!' });
+        return;
+    }
+
+    if ((type !== 'message') && (type !== 'private_message')) {
+        res.status(422).send({ message:'Tipo de mensagem inválido!' });
+        return;
+    }
+
+    if (hasUser.length === 0) {
+        res.status(422).send({ message:'Remetente inválido!' });
+        return;
+    }
+
+    db.collection('messages').insertOne({
+        from: user,
+        to,
+        text,
+        type,
+        time: dayjs(new Date()).format('HH:mm:ss')
+    });
+
+    res.status(201).send({ message:'Mensagem enviada' });
 });
 
 server.listen(5000, () => console.log('Servidor rodando na porta 5000.'));
