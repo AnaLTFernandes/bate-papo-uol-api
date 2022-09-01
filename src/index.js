@@ -87,4 +87,31 @@ server.post('/messages', async (req, res) => {
     res.status(201).send({ message:'Mensagem enviada' });
 });
 
+server.get('/messages', async (req, res) => {
+    const { user } = req.headers;
+    const limit = req.query.limit;
+
+    if (!user) {
+        res.status(422).send({ message:'Informe o usuário!' });
+        return;
+    }
+
+    if (limit && limit < 1) {
+        res.status(422).send({ message:'Limite de mensagens inválido!' });
+        return;
+    }
+
+    const messagesFromUser = await db.collection('messages').find({ from:user }).toArray();
+    const messagesToUser = await db.collection('messages').find({ to:user }).toArray();
+    const messagesToEveryone = await db.collection('messages').find({ type:'message' }).toArray();
+    
+    const messages = [
+        ...messagesFromUser,
+        ...messagesToUser,
+        ...messagesToEveryone
+    ];
+
+    res.send(messages.reverse().slice(0, limit));
+});
+
 server.listen(5000, () => console.log('Servidor rodando na porta 5000.'));
