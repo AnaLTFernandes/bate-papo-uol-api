@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { MongoClient } from 'mongodb';
 import dotenv from 'dotenv';
+import joi from 'joi';
 import dayjs from 'dayjs';
 
 dotenv.config();
@@ -17,6 +18,17 @@ let db;
 
 mongoClient.connect().then(() => {
     db = mongoClient.db('batepapo_uol');
+});
+
+
+const participantSchema = joi.object({
+    name: joi.string().required()
+});
+
+const messageSchema = joi.object({
+    to: joi.string().required(),
+    text: joi.string().required(),
+    type: joi.string().valid('message').valid('private_message').required()
 });
 
 
@@ -36,7 +48,7 @@ setInterval (async () => {
                 text: 'sai na sala...',
                 type: 'status',
                 time: dayjs(new Date()).format('HH:mm:ss')
-            })
+            });
         }
     });
 }, 15000);
@@ -44,33 +56,66 @@ setInterval (async () => {
 server.post('/participants', async (req, res) => {
     const { name } = req.body;
 
-    if (!name) {
-        res.sendStatus(422);
+    const validation = participantSchema.validate({ name });
+
+    if (validation.error) {
+        res.status(422).send({ message:validation.error.details[0].message });
         return;
     }
 
-    const hasName = await db.collection('participants').find({ name }).toArray();
+    let hasName;
+
+    try {
+        hasName = await db.collection('participants').find({ name }).toArray();
+        
+    } catch (error) {
+        console.log('Erro ao verificar se usuário já existe: ' + error);
+        res.sendStatus(500);
+        return;
+    }
 
     if (hasName.length > 0) {
         res.status(409).send({ message:'Nome já existente!' });
         return;
     }
 
-  
-    db.collection('participants').insertOne({ name, lastStatus: Date.now() });
-    db.collection('messages').insertOne({
-        from: name,
-        to: 'Todos',
-        text: 'entra na sala...',
-        type: 'status',
-        time: dayjs(new Date()).format('HH:mm:ss')
-    });
+    try {
+        db.collection('participants').insertOne({ name, lastStatus: Date.now() });
+
+    } catch (error) {
+        console.log('Erro ao adicionar usuário: ' + error);
+        res.sendStatus(500);
+        return;
+    }
+
+    try {
+        db.collection('messages').insertOne({
+            from: name,
+            to: 'Todos',
+            text: 'entra na sala...',
+            type: 'status',
+            time: dayjs(new Date()).format('HH:mm:ss')
+        });
+
+    } catch (error) {
+        console.log('Erro ao adicionar mensagem de status: ' + error);
+        res.sendStatus(500);
+        return;
+    }
 
     res.status(201).send({ message:'Usuário criado' });
 });
 
 server.get('/participants', async (req, res) => {
-    let participants = await db.collection('participants').find().toArray();
+    let participants;
+
+    try {
+        participants = await db.collection('participants').find().toArray();
+    } catch (error) {
+        console.log('Erro ao buscar participantes: ' + error);
+        res.sendStatus(500);
+        return;
+    }
 
     participants = participants.map(({ name, lastStatus }) => ({ name, lastStatus }));
 
@@ -81,15 +126,23 @@ server.post('/messages', async (req, res) => {
     const { user } = req.headers;
     const { to, text, type } = req.body;
 
-    const hasUser = await db.collection('participants').find({ name:user }).toArray();
+    const validation = messageSchema.validate(req.body, { abortEarly:false });
 
-    if (!to || !text) {
-        res.status(422).send({ message:'Campos vazios são inválidos!' });
+    if (validation.error) {
+        const message = validation.error.details.map(({ message }) => message);
+
+        res.status(422).send({ message });
         return;
     }
 
-    if ((type !== 'message') && (type !== 'private_message')) {
-        res.status(422).send({ message:'Tipo de mensagem inválido!' });
+    let hasUser;
+
+    try {
+        hasUser = await db.collection('participants').find({ name:user }).toArray();
+
+    } catch (error) {
+        console.log('Erro ao buscar remetente: ' + error);
+        res.sendStatus(500);
         return;
     }
 
@@ -98,13 +151,20 @@ server.post('/messages', async (req, res) => {
         return;
     }
 
-    db.collection('messages').insertOne({
-        from: user,
-        to,
-        text,
-        type,
-        time: dayjs(new Date()).format('HH:mm:ss')
-    });
+    try {
+        db.collection('messages').insertOne({
+            from: user,
+            to,
+            text,
+            type,
+            time: dayjs(new Date()).format('HH:mm:ss')
+        });
+
+    } catch (error) {
+        console.log('Erro ao enviar mensagem: ' + error);
+        res.sendStatus(500);
+        return;
+    }
 
     res.status(201).send({ message:'Mensagem enviada' });
 });
@@ -114,20 +174,30 @@ server.get('/messages', async (req, res) => {
     const limit = req.query.limit;
 
     if (!user) {
-        res.status(422).send({ message:'Informe o usuário!' });
+        res.status(400).send({ message:'Informe o usuário!' });
         return;
     }
 
     if (limit && limit < 1) {
-        res.status(422).send({ message:'Limite de mensagens inválido!' });
+        res.status(400).send({ message:'Limite de mensagens inválido!' });
         return;
     }
 
-    let messages = await db.collection('messages').find().toArray();
+    let messages;
+
+    try {
+        messages = await db.collection('messages').find().toArray();
+
+    } catch (error) {
+        console.log('Erro ao buscar mensagens: ' + error);
+        res.sendStatus(500);
+        return;
+    }
     
     messages = messages.filter(({ from, to, type }) => 
         from === user ||
         to === user ||
+        to === 'Todos' ||
         type === 'message'
     );
 
@@ -136,8 +206,22 @@ server.get('/messages', async (req, res) => {
 
 server.post('/status', async (req, res) => {
     const { user } = req.headers;
+    
+    if (!user) {
+        res.status(400).send({ message:'Informe o usuário!' });
+        return;
+    }
 
-    let participant = await db.collection('participants').find({ name:user }).toArray();
+    let participant;
+
+    try {
+        participant = await db.collection('participants').find({ name:user }).toArray();
+
+    } catch (error) {
+        console.log('Erro ao buscar participante: ' + error);
+        res.sendStatus(500);
+        return;
+    }
 
     if (participant.length === 0) {
         res.status(404).send({ message:'Usuário não encontrado.' });
