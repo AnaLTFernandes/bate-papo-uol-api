@@ -275,4 +275,72 @@ server.delete('/messages/:id', async (req, res) => {
     res.send({ message:'Mensagem apagada.' });
 });
 
+server.put('/messages/:id', async (req, res) => {
+    const { user } = req.headers;
+    const { to, text, type } = req.body;
+    const { id } = req.params;
+
+    if (!user) {
+        res.status(400).send({ message:'Informe o usuário!' });
+        return;
+    }
+
+    const validation = messageSchema.validate({ to, text, type }, { abortEarly:false });
+
+    if (validation.error) {
+        const message = validation.error.details.map(({ message }) => message);
+
+        res.status(422).send({ message });
+        return;
+    }
+
+    let hasUser;
+
+    try {
+        hasUser = await db.collection('participants').find({ name:user }).toArray();
+
+    } catch (error) {
+        console.log('Erro ao buscar remetente: ' + error);
+        res.sendStatus(500);
+        return;
+    }
+
+    if (hasUser.length === 0) {
+        res.status(422).send({ message:'Remetente inválido!' });
+        return;
+    }
+
+    let message;
+
+    try {
+        message = await db.collection('messages').find({ _id: ObjectId(id) }).toArray();
+
+    } catch (error) {
+        console.log('Erro ao buscar mensagem: ' + error);
+        res.sendStatus(500);
+        return;
+    }
+
+    if (message.length === 0) {
+        res.status(404).send({ message:'Mensagem não encontrada.' });
+        return;
+    }
+
+    if (message[0].from !== user) {
+        res.sendStatus(401);
+        return;
+    }
+
+    try {
+        await db.collection('messages').updateOne({ _id: ObjectId(id) },
+        { $set: { to, text, type } });
+    } catch (error) {
+        console.log('Erro ao atualizar mensagem: ' + error);
+        res.sendStatus(500);
+        return;
+    }
+
+    res.send({ message:'Mensagem editada.' });
+});
+
 server.listen(5000, () => console.log('Listening on port 5000...'));
