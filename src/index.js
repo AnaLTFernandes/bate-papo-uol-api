@@ -128,12 +128,25 @@ server.get('/messages', async (req, res) => {
     messages = messages.filter(({ from, to, type }) => 
         from === user ||
         to === user ||
-        to === 'Todos' ||
         type === 'message'
     );
 
     res.send(messages.reverse().slice(0, limit));
 });
 
+server.post('/status', async (req, res) => {
+    const { user } = req.headers;
 
-server.listen(5000, () => console.log('Servidor rodando na porta 5000.'));
+    let participant = await db.collection('participants').find({ name:user }).toArray();
+
+    if (participant.length === 0) {
+        res.status(404).send({ message:'Usuário não encontrado.' });
+        return;
+    }
+    
+    db.collection('participants').updateOne({ name:user }, { $set: { lastStatus: Date.now() } });
+
+    res.sendStatus(200);
+});
+
+server.listen(5000, () => console.log('Listening on port 5000...'));
