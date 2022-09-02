@@ -32,7 +32,7 @@ const messageSchema = joi.object({
     type: joi.string().valid('message').valid('private_message').required()
 });
 
-/*
+
 setInterval (async () => {
     const participants = await db.collection('participants').find().toArray();
 
@@ -52,7 +52,7 @@ setInterval (async () => {
             });
         }
     });
-}, 15000);*/
+}, 15000);
  
 server.post('/participants', async (req, res) => {
     let { name } = req.body;
@@ -82,7 +82,7 @@ server.post('/participants', async (req, res) => {
     }
 
     try {
-        db.collection('participants').insertOne({ name, lastStatus: Date.now() });
+        await db.collection('participants').insertOne({ name, lastStatus: Date.now() });
 
     } catch (error) {
         console.log('Erro ao adicionar usuário: ' + error);
@@ -91,7 +91,7 @@ server.post('/participants', async (req, res) => {
     }
 
     try {
-        db.collection('messages').insertOne({
+        await db.collection('messages').insertOne({
             from: name,
             to: 'Todos',
             text: 'entra na sala...',
@@ -159,7 +159,7 @@ server.post('/messages', async (req, res) => {
     }
 
     try {
-        db.collection('messages').insertOne({
+        await db.collection('messages').insertOne({
             from: user,
             to,
             text,
@@ -208,7 +208,7 @@ server.get('/messages', async (req, res) => {
         type === 'message'
     );
 
-    res.send(messages.reverse().slice(0, limit));
+    res.send(messages.slice(-limit));
 });
 
 server.post('/status', async (req, res) => {
@@ -235,7 +235,7 @@ server.post('/status', async (req, res) => {
         return;
     }
     
-    db.collection('participants').updateOne({ name:user }, { $set: { lastStatus: Date.now() } });
+    await db.collection('participants').updateOne({ name:user }, { $set: { lastStatus: Date.now() } });
 
     res.sendStatus(200);
 });
@@ -291,6 +291,11 @@ server.put('/messages/:id', async (req, res) => {
         res.status(400).send({ message:'Informe o usuário!' });
         return;
     }
+
+    user = stripHtml(user).result.trim();
+    to = stripHtml(to).result.trim();
+    text = stripHtml(text).result.trim();
+    type = stripHtml(type).result.trim();
 
     const validation = messageSchema.validate({ to, text, type }, { abortEarly:false });
 
@@ -348,6 +353,35 @@ server.put('/messages/:id', async (req, res) => {
     }
 
     res.send({ message:'Mensagem editada.' });
+});
+
+server.get('/messages/:username', async (req, res) => {
+    const { user } = req.headers;
+    const { username } = req.params;
+
+    if (!user) {
+        res.status(400).send({ message:'Informe o usuário!' });
+        return;
+    }
+
+    let messages;
+
+    try {
+        messages = await db.collection('messages').find({ from: username }).toArray();
+
+    } catch (error) {
+        console.log('Erro ao buscar mensagens: ' + error);
+        res.sendStatus(500);
+        return;
+    }
+
+    messages = messages.filter(({ to, type }) =>
+        to === user ||
+        to === 'Todos' ||
+        type === 'message'
+    );
+
+    res.send(messages);
 });
 
 server.listen(5000, () => console.log('Listening on port 5000...'));
