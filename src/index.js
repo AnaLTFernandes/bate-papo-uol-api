@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { MongoClient, ObjectId } from 'mongodb';
+import { stripHtml } from 'string-strip-html';
 import dotenv from 'dotenv';
 import joi from 'joi';
 import dayjs from 'dayjs';
@@ -54,7 +55,8 @@ setInterval (async () => {
 }, 15000);*/
  
 server.post('/participants', async (req, res) => {
-    const { name } = req.body;
+    let { name } = req.body;
+    name = stripHtml(name).result.trim();
 
     const validation = participantSchema.validate({ name });
 
@@ -123,10 +125,15 @@ server.get('/participants', async (req, res) => {
 });
 
 server.post('/messages', async (req, res) => {
-    const { user } = req.headers;
-    const { to, text, type } = req.body;
+    let { user } = req.headers;
+    let { to, text, type } = req.body;
 
-    const validation = messageSchema.validate(req.body, { abortEarly:false });
+    user = stripHtml(user).result.trim();
+    to = stripHtml(to).result.trim();
+    text = stripHtml(text).result.trim();
+    type = stripHtml(type).result.trim();
+
+    const validation = messageSchema.validate({ to, text, type }, { abortEarly:false });
 
     if (validation.error) {
         const message = validation.error.details.map(({ message }) => message);
