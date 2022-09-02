@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { MongoClient } from 'mongodb';
+import { MongoClient, ObjectId } from 'mongodb';
 import dotenv from 'dotenv';
 import joi from 'joi';
 import dayjs from 'dayjs';
@@ -31,7 +31,7 @@ const messageSchema = joi.object({
     type: joi.string().valid('message').valid('private_message').required()
 });
 
-
+/*
 setInterval (async () => {
     const participants = await db.collection('participants').find().toArray();
 
@@ -51,7 +51,7 @@ setInterval (async () => {
             });
         }
     });
-}, 15000);
+}, 15000);*/
  
 server.post('/participants', async (req, res) => {
     const { name } = req.body;
@@ -231,6 +231,48 @@ server.post('/status', async (req, res) => {
     db.collection('participants').updateOne({ name:user }, { $set: { lastStatus: Date.now() } });
 
     res.sendStatus(200);
+});
+
+server.delete('/messages/:id', async (req, res) => {
+    const { user } = req.headers;
+    const { id } = req.params;
+
+    if (!user) {
+        res.status(400).send({ message:'Informe o usuário!' });
+        return;
+    }
+
+    let message;
+
+    try {
+        message = await db.collection('messages').find({ _id: ObjectId(id) }).toArray();
+
+    } catch (error) {
+        console.log('Erro ao buscar mensagem: ' + error);
+        res.sendStatus(500);
+        return;
+    }
+
+    if (message.length === 0) {
+        res.status(404).send({ message:'Mensagem não encontrada.' });
+        return;
+    }
+
+    if (message[0].from !== user) {
+        res.sendStatus(401);
+        return;
+    }
+
+    try {
+        await db.collection('messages').deleteOne({ _id: ObjectId(id) });
+
+    } catch (error) {
+        console.log('Erro ao apagar mensagem: ' + error);
+        res.sendStatus(500);
+        return;
+    }
+
+    res.send({ message:'Mensagem apagada.' });
 });
 
 server.listen(5000, () => console.log('Listening on port 5000...'));
