@@ -1,7 +1,7 @@
-import express from 'express';
-import cors from 'cors';
 import { MongoClient, ObjectId } from 'mongodb';
 import { stripHtml } from 'string-strip-html';
+import express from 'express';
+import cors from 'cors';
 import dotenv from 'dotenv';
 import joi from 'joi';
 import dayjs from 'dayjs';
@@ -13,7 +13,7 @@ const server = express();
 server.use(cors());
 server.use(express.json());
 
-const mongoClient = new MongoClient(process.env.MONGO_URI)
+const mongoClient = new MongoClient(process.env.MONGO_URI);
 
 let db;
 
@@ -71,7 +71,7 @@ server.post('/participants', async (req, res) => {
         hasName = await db.collection('participants').find({ name }).toArray();
         
     } catch (error) {
-        console.log('Erro ao verificar se usuário já existe: ' + error);
+        console.log(error.message);
         res.sendStatus(500);
         return;
     }
@@ -85,7 +85,7 @@ server.post('/participants', async (req, res) => {
         await db.collection('participants').insertOne({ name, lastStatus: Date.now() });
 
     } catch (error) {
-        console.log('Erro ao adicionar usuário: ' + error);
+        console.log(error.message);
         res.sendStatus(500);
         return;
     }
@@ -100,7 +100,7 @@ server.post('/participants', async (req, res) => {
         });
 
     } catch (error) {
-        console.log('Erro ao adicionar mensagem de status: ' + error);
+        console.log(error.message);
         res.sendStatus(500);
         return;
     }
@@ -114,7 +114,7 @@ server.get('/participants', async (req, res) => {
     try {
         participants = await db.collection('participants').find().toArray();
     } catch (error) {
-        console.log('Erro ao buscar participantes: ' + error);
+        console.log(error.message);
         res.sendStatus(500);
         return;
     }
@@ -148,7 +148,7 @@ server.post('/messages', async (req, res) => {
         hasUser = await db.collection('participants').find({ name:user }).toArray();
 
     } catch (error) {
-        console.log('Erro ao buscar remetente: ' + error);
+        console.log(error.message);
         res.sendStatus(500);
         return;
     }
@@ -168,7 +168,7 @@ server.post('/messages', async (req, res) => {
         });
 
     } catch (error) {
-        console.log('Erro ao enviar mensagem: ' + error);
+        console.log(error.message);
         res.sendStatus(500);
         return;
     }
@@ -196,7 +196,7 @@ server.get('/messages', async (req, res) => {
         messages = await db.collection('messages').find().toArray();
 
     } catch (error) {
-        console.log('Erro ao buscar mensagens: ' + error);
+        console.log(error.message);
         res.sendStatus(500);
         return;
     }
@@ -225,7 +225,7 @@ server.post('/status', async (req, res) => {
         participant = await db.collection('participants').find({ name:user }).toArray();
 
     } catch (error) {
-        console.log('Erro ao buscar participante: ' + error);
+        console.log(error.message);
         res.sendStatus(500);
         return;
     }
@@ -255,7 +255,7 @@ server.delete('/messages/:id', async (req, res) => {
         message = await db.collection('messages').find({ _id: ObjectId(id) }).toArray();
 
     } catch (error) {
-        console.log('Erro ao buscar mensagem: ' + error);
+        console.log(error.message);
         res.sendStatus(500);
         return;
     }
@@ -274,7 +274,7 @@ server.delete('/messages/:id', async (req, res) => {
         await db.collection('messages').deleteOne({ _id: ObjectId(id) });
 
     } catch (error) {
-        console.log('Erro ao apagar mensagem: ' + error);
+        console.log(error.message);
         res.sendStatus(500);
         return;
     }
@@ -283,8 +283,8 @@ server.delete('/messages/:id', async (req, res) => {
 });
 
 server.put('/messages/:id', async (req, res) => {
-    const { user } = req.headers;
-    const { to, text, type } = req.body;
+    let { user } = req.headers;
+    let { to, text, type } = req.body;
     const { id } = req.params;
 
     if (!user) {
@@ -312,7 +312,7 @@ server.put('/messages/:id', async (req, res) => {
         hasUser = await db.collection('participants').find({ name:user }).toArray();
 
     } catch (error) {
-        console.log('Erro ao buscar remetente: ' + error);
+        console.log(error.message);
         res.sendStatus(500);
         return;
     }
@@ -328,7 +328,7 @@ server.put('/messages/:id', async (req, res) => {
         message = await db.collection('messages').find({ _id: ObjectId(id) }).toArray();
 
     } catch (error) {
-        console.log('Erro ao buscar mensagem: ' + error);
+        console.log(error.message);
         res.sendStatus(500);
         return;
     }
@@ -347,7 +347,7 @@ server.put('/messages/:id', async (req, res) => {
         await db.collection('messages').updateOne({ _id: ObjectId(id) },
         { $set: { to, text, type } });
     } catch (error) {
-        console.log('Erro ao atualizar mensagem: ' + error);
+        console.log(error.message);
         res.sendStatus(500);
         return;
     }
@@ -370,7 +370,7 @@ server.get('/messages/:username', async (req, res) => {
         messages = await db.collection('messages').find({ from: username }).toArray();
 
     } catch (error) {
-        console.log('Erro ao buscar mensagens: ' + error);
+        console.log(error.message);
         res.sendStatus(500);
         return;
     }
