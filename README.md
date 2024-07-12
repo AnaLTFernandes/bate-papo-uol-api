@@ -1,5 +1,7 @@
 # :speech_balloon: Bate-papo UOL API
 
+![Badge Finalizado](https://img.shields.io/static/v1?label=STATUS&message=FINALIZADO&color=success&style=for-the-badge)
+
 # Índice
 
 - [Sobre](#Sobre)
@@ -172,7 +174,7 @@ URL base: `http://localhost:5000`
 
 1. Clone esse repositório:
 >```ruby
-> git clone https://github.com/AnaLTFernandes/batepapo-uol-api.git
+> git clone https://github.com/anatfernandes/batepapo-uol-api.git
 >```
 
 2. Instale as dependências:
@@ -187,4 +189,4 @@ URL base: `http://localhost:5000`
 > npm run dev
 >```
 
-8. Divirta-se nas rotas :)
+5. Divirta-se nas rotas :)
